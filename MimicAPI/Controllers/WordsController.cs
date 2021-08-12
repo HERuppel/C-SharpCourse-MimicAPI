@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MimicAPI.Database;
 using MimicAPI.Helpers;
 using MimicAPI.Models;
+using MimicAPI.Repositories.Contracts;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -14,44 +14,26 @@ namespace MimicAPI.Controllers
     [Route("api/words")]
     public class WordsController : ControllerBase
     {
-        private readonly MimicContext _database;
+        private readonly IWordRepository _repository;
 
-        public WordsController(MimicContext database)
+        public WordsController(IWordRepository repository)
         {
-            _database = database;
+            _repository = repository;
         }
 
         [Route("")]
         [HttpGet]
         public ActionResult GetAll([FromQuery]WordUrlQuery query)
         {
-            var item = _database.Words.AsQueryable();
-
-            if (query.Date.HasValue)
+            var items = _repository.GetAll(query);
+            if (query.PageNumber > items.Pagination.totalPages)
             {
-                item = item.Where(a => a.CreatedAt > query.Date.Value || a.UpdatedAt > query.Date.Value);
+                return NotFound();
             }
 
-            if (query.PageNumber.HasValue)
-            {
-                int totalRegisterCount = item.Count();
-                item = item.Skip((query.PageNumber.Value - 1) * query.PageLimit.Value).Take(query.PageLimit.Value);
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(items.Pagination));
 
-                Pagination pagination = new Pagination();
-                pagination.pageNumber = query.PageNumber.Value;
-                pagination.pageLimit = query.PageLimit.Value;
-                pagination.totalRegisters = totalRegisterCount;
-                pagination.totalPages = (int) Math.Ceiling((double) totalRegisterCount / query.PageLimit.Value);
-
-                Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(pagination));
-
-                if (query.PageNumber > pagination.totalPages)
-                {
-                    return NotFound();
-                }
-            }
-
-            return new JsonResult(item);
+            return new JsonResult(items.ToList());
         }
 
         // URL/api/words/1
@@ -61,10 +43,10 @@ namespace MimicAPI.Controllers
         {
             try
             {
-                Word word = _database.Words.Find(id);
+                Word word = _repository.Get(id);
 
                 if (word == null)
-                    return StatusCode(404);
+                    return NotFound();
 
                 return new JsonResult(word);
             }
@@ -79,24 +61,22 @@ namespace MimicAPI.Controllers
         [HttpPost]
         public ActionResult Create([FromBody]Word word)
         {
-            _database.Words.Add(word);
-            _database.SaveChanges();
+            _repository.Create(word);
 
-            return new JsonResult("Palavra criada!");
+            return Created($"/api/words/{word.Id}", word);
         }
 
         [Route("{id}")]
         [HttpPut]
         public ActionResult Update(int id, [FromBody]Word word)
         {
-            var obj = _database.Words.AsNoTracking().FirstOrDefault(a => a.Id == id);
+            var obj = _repository.Get(id);
 
             if (obj == null)
-                return StatusCode(404);
+                return NotFound();
 
             word.Id = id;
-            _database.Words.Update(word);
-            _database.SaveChanges();
+            _repository.Update(word);
 
             return new JsonResult("Palavra atualizada!");
         }
@@ -105,12 +85,12 @@ namespace MimicAPI.Controllers
         [HttpDelete]
         public ActionResult Delete(int id)
         {
-            var word = _database.Words.Find(id);
-            word.Active = false;
-            _database.Words.Update(word);
-            _database.SaveChanges();
+            Word word = _repository.Get(id);
 
-            return new JsonResult("Palavra deletada!");
+            if (word == null)
+                return NotFound();
+
+            return NoContent();
         }
     }
 }

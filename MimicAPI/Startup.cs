@@ -13,6 +13,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using MimicAPI.Database;
 using Microsoft.EntityFrameworkCore;
+using MimicAPI.Repositories;
+using MimicAPI.Repositories.Contracts;
 
 namespace MimicAPI
 {
@@ -33,6 +35,7 @@ namespace MimicAPI
                 opt.UseSqlite("Data Source=Database\\Mimic.db");
             });
             services.AddMvc(option => option.EnableEndpointRouting = false);
+            services.AddScoped<IWordRepository, WordRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
