@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MimicAPI.Database;
+using MimicAPI.Helpers;
 using MimicAPI.Models;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,13 +23,32 @@ namespace MimicAPI.Controllers
 
         [Route("")]
         [HttpGet]
-        public ActionResult GetAll(DateTime? date)
+        public ActionResult GetAll([FromQuery]WordUrlQuery query)
         {
             var item = _database.Words.AsQueryable();
 
-            if (date.HasValue)
+            if (query.Date.HasValue)
             {
-                item = item.Where(a => a.CreatedAt > date.Value || a.UpdatedAt > date.Value);
+                item = item.Where(a => a.CreatedAt > query.Date.Value || a.UpdatedAt > query.Date.Value);
+            }
+
+            if (query.PageNumber.HasValue)
+            {
+                int totalRegisterCount = item.Count();
+                item = item.Skip((query.PageNumber.Value - 1) * query.PageLimit.Value).Take(query.PageLimit.Value);
+
+                Pagination pagination = new Pagination();
+                pagination.pageNumber = query.PageNumber.Value;
+                pagination.pageLimit = query.PageLimit.Value;
+                pagination.totalRegisters = totalRegisterCount;
+                pagination.totalPages = (int) Math.Ceiling((double) totalRegisterCount / query.PageLimit.Value);
+
+                Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(pagination));
+
+                if (query.PageNumber > pagination.totalPages)
+                {
+                    return NotFound();
+                }
             }
 
             return new JsonResult(item);
