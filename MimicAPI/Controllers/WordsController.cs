@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MimicAPI.Helpers;
 using MimicAPI.Models;
+using MimicAPI.Models.DTO;
 using MimicAPI.Repositories.Contracts;
 using Newtonsoft.Json;
 using System;
@@ -15,10 +17,12 @@ namespace MimicAPI.Controllers
     public class WordsController : ControllerBase
     {
         private readonly IWordRepository _repository;
+        private readonly IMapper _mapper;
 
-        public WordsController(IWordRepository repository)
+        public WordsController(IWordRepository repository, IMapper mapper)
         {
             _repository = repository;
+            _mapper = mapper;
         }
 
         [Route("")]
@@ -37,8 +41,8 @@ namespace MimicAPI.Controllers
         }
 
         // URL/api/words/1
-        [Route("{id}")]
-        [HttpGet]
+        //[Route("{id}")]
+        [HttpGet("{id}", Name = "GetWord")]
         public ActionResult GetById(int id)
         {
             try
@@ -48,7 +52,19 @@ namespace MimicAPI.Controllers
                 if (word == null)
                     return NotFound();
 
-                return new JsonResult(word);
+                WordDTO wordDTO = _mapper.Map<Word, WordDTO>(word);
+                wordDTO.Links = new List<LinkDTO>();
+                wordDTO.Links.Add(
+                    new LinkDTO("self", Url.Link("GetWord", new { id = wordDTO.Id }), "GET")
+                );
+                wordDTO.Links.Add(
+                    new LinkDTO("update", Url.Link("UpdateWord", new { id = wordDTO.Id }), "PUT")
+                );
+                wordDTO.Links.Add(
+                    new LinkDTO("delete", Url.Link("DeleteWord", new { id = wordDTO.Id }), "DELETE")
+                );
+
+                return new JsonResult(wordDTO);
             }
             catch (Exception)
             {
@@ -66,8 +82,8 @@ namespace MimicAPI.Controllers
             return Created($"/api/words/{word.Id}", word);
         }
 
-        [Route("{id}")]
-        [HttpPut]
+        //[Route("{id}")]
+        [HttpPut("{id}", Name = "UpdateWord")]
         public ActionResult Update(int id, [FromBody]Word word)
         {
             var obj = _repository.Get(id);
@@ -81,8 +97,8 @@ namespace MimicAPI.Controllers
             return new JsonResult("Palavra atualizada!");
         }
 
-        [Route("{id}")]
-        [HttpDelete]
+        //[Route("{id}")]
+        [HttpDelete("{id}", Name = "DeleteWord")]
         public ActionResult Delete(int id)
         {
             Word word = _repository.Get(id);

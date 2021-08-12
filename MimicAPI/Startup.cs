@@ -15,6 +15,8 @@ using MimicAPI.Database;
 using Microsoft.EntityFrameworkCore;
 using MimicAPI.Repositories;
 using MimicAPI.Repositories.Contracts;
+using AutoMapper;
+using MimicAPI.Helpers;
 
 namespace MimicAPI
 {
@@ -30,6 +32,14 @@ namespace MimicAPI
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile(new DTOMapperProfile());
+            });
+
+            IMapper mapper = config.CreateMapper();
+            services.AddSingleton(mapper);
+
             services.AddDbContext<MimicContext>(opt =>
             {
                 opt.UseSqlite("Data Source=Database\\Mimic.db");
