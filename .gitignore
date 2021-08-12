@@ -453,4 +453,4 @@ $RECYCLE.BIN/
 !.vscode/launch.json
 !.vscode/extensions.json
 
-/Database/Mimic.db
+MimicAPI/Database/Mimic.db
